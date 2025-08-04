@@ -55,6 +55,42 @@
             z-index: 1000;
             background: #10b981;
             color: white;
+            cursor: pointer;
+        }
+
+        .share-section {
+            background: #e0f2fe;
+            border: 2px solid #0284c7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .share-url {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .copy-btn {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin: 5px;
+        }
+
+        .copy-btn:hover {
+            background: #0369a1;
         }
 
         .card {
@@ -356,11 +392,19 @@
 </head>
 <body>
     <div class="container">
-        <div id="syncStatus" class="sync-status">🟢 リアルタイム同期</div>
+        <div id="syncStatus" class="sync-status" onclick="expenseTracker.showShareInfo()">🔗 共有リンク</div>
         
         <div class="header">
             <h1>💰 家計計算ツール</h1>
-            <p>デバイス間でリアルタイム同期</p>
+            <p>夫婦で共有する支出管理</p>
+        </div>
+
+        <div id="shareSection" class="share-section" style="display: none;">
+            <h3>📱 共有リンク</h3>
+            <p>このリンクを夫と共有してください</p>
+            <div class="share-url" id="shareUrl"></div>
+            <button class="copy-btn" onclick="expenseTracker.copyShareUrl()">📋 コピー</button>
+            <button class="copy-btn" onclick="expenseTracker.hideShareInfo()">閉じる</button>
         </div>
 
         <div class="card">
@@ -419,118 +463,119 @@
             constructor() {
                 this.expenses = [];
                 this.currentMonth = new Date().toISOString().slice(0, 7);
-                this.storageKey = 'household_expenses_shared';
+                this.shareId = this.getOrCreateShareId();
+                this.storageKey = `household_expenses_${this.shareId}`;
                 this.init();
+            }
+
+            getOrCreateShareId() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const shareIdFromUrl = urlParams.get('share');
+                
+                if (shareIdFromUrl) {
+                    localStorage.setItem('current_share_id', shareIdFromUrl);
+                    return shareIdFromUrl;
+                }
+                
+                const existingShareId = localStorage.getItem('current_share_id');
+                if (existingShareId) {
+                    return existingShareId;
+                }
+                
+                const newShareId = this.generateShareId();
+                localStorage.setItem('current_share_id', newShareId);
+                
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('share', newShareId);
+                window.history.replaceState({}, '', newUrl);
+                
+                return newShareId;
+            }
+
+            generateShareId() {
+                return 'fam_' + Math.random().toString(36).substr(2, 12);
             }
 
             init() {
                 this.setupEventListeners();
                 this.setTodayDate();
-                this.initializeCloudSync();
+                this.loadExpenses();
+                this.setupPeriodicSync();
                 this.generateMonthSelector();
                 this.updateDisplay();
+                this.updateShareUrl();
             }
 
-            async initializeCloudSync() {
-                // JSONBin.ioを使用した簡単なクラウド同期
-                this.cloudApi = {
-                    baseUrl: 'https://api.jsonbin.io/v3/b',
-                    binId: '674e5c8ae41b4d34e4594a2b', // 実際のBin IDに置き換える
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Master-Key': '$2a$10$7u6j8pq3zKfLnMxWvYtG0u.8QrHNaY9K1L6R4E3P2cTdVbNm9lS1y' // 実際のAPIキーに置き換える
-                    }
-                };
-
-                await this.loadFromCloud();
-                this.setupPeriodicSync();
+            updateShareUrl() {
+                const baseUrl = window.location.origin + window.location.pathname;
+                const shareUrl = `${baseUrl}?share=${this.shareId}`;
+                document.getElementById('shareUrl').textContent = shareUrl;
             }
 
-            async loadFromCloud() {
-                try {
-                    // まずローカルデータをロード
-                    const localData = JSON.parse(localStorage.getItem(this.storageKey)) || [];
-                    this.expenses = localData;
-                    this.updateDisplay();
-
-                    // クラウドからデータを取得
-                    const response = await fetch(`${this.cloudApi.baseUrl}/${this.cloudApi.binId}/latest`, {
-                        headers: this.cloudApi.headers
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.record && Array.isArray(data.record)) {
-                            // クラウドデータとローカルデータをマージ
-                            const cloudExpenses = data.record;
-                            this.expenses = this.mergeExpenses(localData, cloudExpenses);
-                            localStorage.setItem(this.storageKey, JSON.stringify(this.expenses));
-                            this.generateMonthSelector();
-                            this.updateDisplay();
-                        }
-                    }
-                } catch (error) {
-                    console.log('Cloud sync not available, using local storage');
-                    this.expenses = JSON.parse(localStorage.getItem(this.storageKey)) || [];
-                    this.updateDisplay();
-                }
+            showShareInfo() {
+                document.getElementById('shareSection').style.display = 'block';
             }
 
-            mergeExpenses(local, cloud) {
-                const merged = [...cloud];
-                const cloudIds = new Set(cloud.map(expense => expense.id));
-                
-                // ローカルにあってクラウドにない項目を追加
-                local.forEach(expense => {
-                    if (!cloudIds.has(expense.id)) {
-                        merged.push(expense);
-                    }
+            hideShareInfo() {
+                document.getElementById('shareSection').style.display = 'none';
+            }
+
+            copyShareUrl() {
+                const shareUrl = document.getElementById('shareUrl').textContent;
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    const btn = event.target;
+                    const originalText = btn.textContent;
+                    btn.textContent = '✅ コピー完了';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 2000);
                 });
-
-                return merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             }
 
-            async saveToCloud() {
-                try {
-                    // ローカルに保存
-                    localStorage.setItem(this.storageKey, JSON.stringify(this.expenses));
-
-                    // クラウドに保存
-                    await fetch(`${this.cloudApi.baseUrl}/${this.cloudApi.binId}`, {
-                        method: 'PUT',
-                        headers: this.cloudApi.headers,
-                        body: JSON.stringify(this.expenses)
-                    });
-
-                    this.updateSyncStatus('🟢 同期完了', '#10b981');
-                } catch (error) {
-                    console.log('Cloud save failed, data saved locally');
-                    this.updateSyncStatus('🟡 ローカル保存', '#f59e0b');
-                }
+            loadExpenses() {
+                this.expenses = JSON.parse(localStorage.getItem(this.storageKey)) || [];
             }
 
-            updateSyncStatus(text, color) {
-                const statusElement = document.getElementById('syncStatus');
-                statusElement.textContent = text;
-                statusElement.style.backgroundColor = color;
-                
-                setTimeout(() => {
-                    statusElement.textContent = '🟢 リアルタイム同期';
-                    statusElement.style.backgroundColor = '#10b981';
-                }, 2000);
+            saveExpenses() {
+                localStorage.setItem(this.storageKey, JSON.stringify(this.expenses));
+                this.updateSyncStatus('💾 保存完了');
             }
 
             setupPeriodicSync() {
-                // 30秒ごとにクラウドから同期
-                setInterval(async () => {
-                    await this.loadFromCloud();
-                }, 30000);
+                setInterval(() => {
+                    const currentData = JSON.parse(localStorage.getItem(this.storageKey)) || [];
+                    if (JSON.stringify(currentData) !== JSON.stringify(this.expenses)) {
+                        this.expenses = currentData;
+                        this.generateMonthSelector();
+                        this.updateDisplay();
+                        this.updateSyncStatus('🔄 更新検出');
+                    }
+                }, 2000);
+            }
+
+            updateSyncStatus(message) {
+                const statusElement = document.getElementById('syncStatus');
+                const originalText = statusElement.textContent;
+                statusElement.textContent = message;
+                
+                setTimeout(() => {
+                    statusElement.textContent = '🔗 共有リンク';
+                }, 2000);
             }
 
             setupEventListeners() {
                 document.getElementById('expenseForm').addEventListener('submit', (e) => {
                     e.preventDefault();
                     this.addExpense();
+                });
+
+                window.addEventListener('storage', (e) => {
+                    if (e.key === this.storageKey) {
+                        this.loadExpenses();
+                        this.generateMonthSelector();
+                        this.updateDisplay();
+                        this.updateSyncStatus('🔄 他端末更新');
+                    }
                 });
             }
 
@@ -539,7 +584,7 @@
                 document.getElementById('date').value = today;
             }
 
-            async addExpense() {
+            addExpense() {
                 const date = document.getElementById('date').value;
                 const store = document.getElementById('store').value.trim();
                 const category = document.getElementById('category').value;
@@ -560,7 +605,7 @@
                 };
 
                 this.expenses.unshift(expense);
-                await this.saveToCloud();
+                this.saveExpenses();
                 this.generateMonthSelector();
                 this.updateDisplay();
                 this.resetForm();
@@ -830,10 +875,10 @@
                 return `${date.getMonth() + 1}/${date.getDate()}`;
             }
 
-            async deleteExpense(id) {
+            deleteExpense(id) {
                 if (confirm('この記録を削除しますか？')) {
                     this.expenses = this.expenses.filter(expense => expense.id !== id);
-                    await this.saveToCloud();
+                    this.saveExpenses();
                     this.generateMonthSelector();
                     this.updateDisplay();
                 }
