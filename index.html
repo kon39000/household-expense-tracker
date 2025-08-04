@@ -43,6 +43,19 @@
             opacity: 0.9;
             font-size: 1.1rem;
         }
+        
+        .sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 1000;
+            background: #10b981;
+            color: white;
+        }
 
         .card {
             background: white;
@@ -343,9 +356,11 @@
 </head>
 <body>
     <div class="container">
+        <div id="syncStatus" class="sync-status">🟢 リアルタイム同期</div>
+        
         <div class="header">
             <h1>💰 家計計算ツール</h1>
-            <p>みんなで共有する支出管理</p>
+            <p>デバイス間でリアルタイム同期</p>
         </div>
 
         <div class="card">
@@ -402,16 +417,114 @@
     <script>
         class ExpenseTracker {
             constructor() {
-                this.expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+                this.expenses = [];
                 this.currentMonth = new Date().toISOString().slice(0, 7);
+                this.storageKey = 'household_expenses_shared';
                 this.init();
             }
 
             init() {
                 this.setupEventListeners();
                 this.setTodayDate();
+                this.initializeCloudSync();
                 this.generateMonthSelector();
                 this.updateDisplay();
+            }
+
+            async initializeCloudSync() {
+                // JSONBin.ioを使用した簡単なクラウド同期
+                this.cloudApi = {
+                    baseUrl: 'https://api.jsonbin.io/v3/b',
+                    binId: '674e5c8ae41b4d34e4594a2b', // 実際のBin IDに置き換える
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': '$2a$10$7u6j8pq3zKfLnMxWvYtG0u.8QrHNaY9K1L6R4E3P2cTdVbNm9lS1y' // 実際のAPIキーに置き換える
+                    }
+                };
+
+                await this.loadFromCloud();
+                this.setupPeriodicSync();
+            }
+
+            async loadFromCloud() {
+                try {
+                    // まずローカルデータをロード
+                    const localData = JSON.parse(localStorage.getItem(this.storageKey)) || [];
+                    this.expenses = localData;
+                    this.updateDisplay();
+
+                    // クラウドからデータを取得
+                    const response = await fetch(`${this.cloudApi.baseUrl}/${this.cloudApi.binId}/latest`, {
+                        headers: this.cloudApi.headers
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.record && Array.isArray(data.record)) {
+                            // クラウドデータとローカルデータをマージ
+                            const cloudExpenses = data.record;
+                            this.expenses = this.mergeExpenses(localData, cloudExpenses);
+                            localStorage.setItem(this.storageKey, JSON.stringify(this.expenses));
+                            this.generateMonthSelector();
+                            this.updateDisplay();
+                        }
+                    }
+                } catch (error) {
+                    console.log('Cloud sync not available, using local storage');
+                    this.expenses = JSON.parse(localStorage.getItem(this.storageKey)) || [];
+                    this.updateDisplay();
+                }
+            }
+
+            mergeExpenses(local, cloud) {
+                const merged = [...cloud];
+                const cloudIds = new Set(cloud.map(expense => expense.id));
+                
+                // ローカルにあってクラウドにない項目を追加
+                local.forEach(expense => {
+                    if (!cloudIds.has(expense.id)) {
+                        merged.push(expense);
+                    }
+                });
+
+                return merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }
+
+            async saveToCloud() {
+                try {
+                    // ローカルに保存
+                    localStorage.setItem(this.storageKey, JSON.stringify(this.expenses));
+
+                    // クラウドに保存
+                    await fetch(`${this.cloudApi.baseUrl}/${this.cloudApi.binId}`, {
+                        method: 'PUT',
+                        headers: this.cloudApi.headers,
+                        body: JSON.stringify(this.expenses)
+                    });
+
+                    this.updateSyncStatus('🟢 同期完了', '#10b981');
+                } catch (error) {
+                    console.log('Cloud save failed, data saved locally');
+                    this.updateSyncStatus('🟡 ローカル保存', '#f59e0b');
+                }
+            }
+
+            updateSyncStatus(text, color) {
+                const statusElement = document.getElementById('syncStatus');
+                statusElement.textContent = text;
+                statusElement.style.backgroundColor = color;
+                
+                setTimeout(() => {
+                    statusElement.textContent = '🟢 リアルタイム同期';
+                    statusElement.style.backgroundColor = '#10b981';
+                }, 2000);
+            }
+
+            setupPeriodicSync() {
+                // 30秒ごとにクラウドから同期
+                setInterval(async () => {
+                    await this.loadFromCloud();
+                }, 30000);
             }
 
             setupEventListeners() {
@@ -426,7 +539,7 @@
                 document.getElementById('date').value = today;
             }
 
-            addExpense() {
+            async addExpense() {
                 const date = document.getElementById('date').value;
                 const store = document.getElementById('store').value.trim();
                 const category = document.getElementById('category').value;
@@ -438,7 +551,7 @@
                 }
 
                 const expense = {
-                    id: Date.now(),
+                    id: Date.now() + Math.random(),
                     date,
                     store,
                     category,
@@ -446,8 +559,9 @@
                     timestamp: new Date().toISOString()
                 };
 
-                this.expenses.push(expense);
-                this.saveExpenses();
+                this.expenses.unshift(expense);
+                await this.saveToCloud();
+                this.generateMonthSelector();
                 this.updateDisplay();
                 this.resetForm();
 
@@ -459,10 +573,6 @@
                 document.getElementById('category').value = '';
                 document.getElementById('amount').value = '';
                 this.setTodayDate();
-            }
-
-            saveExpenses() {
-                localStorage.setItem('expenses', JSON.stringify(this.expenses));
             }
 
             generateMonthSelector() {
@@ -720,10 +830,10 @@
                 return `${date.getMonth() + 1}/${date.getDate()}`;
             }
 
-            deleteExpense(id) {
+            async deleteExpense(id) {
                 if (confirm('この記録を削除しますか？')) {
                     this.expenses = this.expenses.filter(expense => expense.id !== id);
-                    this.saveExpenses();
+                    await this.saveToCloud();
                     this.generateMonthSelector();
                     this.updateDisplay();
                 }
