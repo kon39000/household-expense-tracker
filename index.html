@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家計計算ツール</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-item {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .summary-item h3 {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .summary-item .amount {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .history-info {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .history-date {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .history-details {
+            font-weight: 600;
+            margin: 5px 0;
+        }
+
+        .history-amount {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #dc2626;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        .month-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .month-btn {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .month-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #8b4513;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .comparison-title {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .comparison-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .comparison-change {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .comparison-change.increase {
+            color: #dc2626;
+        }
+
+        .comparison-change.decrease {
+            color: #16a34a;
+        }
+
+        .comparison-change.same {
+            color: #6b7280;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .history-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .history-amount {
+                margin-top: 10px;
+                align-self: flex-end;
+            }
+
+            .month-selector {
+                justify-content: center;
+            }
+
+            .month-btn {
+                flex: 1;
+                min-width: 80px;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.3rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            input, select, .btn {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 家計計算ツール</h1>
+            <p>みんなで共有する支出管理</p>
+        </div>
+
+        <div class="card">
+            <h2>📝 支出を記録</h2>
+            <form id="expenseForm">
+                <div class="form-group">
+                    <label for="date">日付</label>
+                    <input type="date" id="date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="store">店名</label>
+                    <input type="text" id="store" placeholder="例: セブンイレブン" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category">種類</label>
+                    <select id="category" required>
+                        <option value="">選択してください</option>
+                        <option value="食費">🍽️ 食費</option>
+                        <option value="日用品">🧴 日用品</option>
+                        <option value="交通費">🚃 交通費</option>
+                        <option value="光熱費">💡 光熱費</option>
+                        <option value="雑費">📦 雑費</option>
+                        <option value="娯楽費">🎮 娯楽費</option>
+                        <option value="医療費">🏥 医療費</option>
+                        <option value="その他">📋 その他</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount">金額（円）</label>
+                    <input type="number" id="amount" placeholder="1000" min="1" required>
+                </div>
+                
+                <button type="submit" class="btn">💾 記録する</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>📊 月別集計</h2>
+            <div class="month-selector" id="monthSelector"></div>
+            <div id="comparisonSection"></div>
+            <div class="summary-grid" id="summaryGrid"></div>
+            <div id="statsSection"></div>
+        </div>
+
+        <div class="card">
+            <h2>📋 支出履歴</h2>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        class ExpenseTracker {
+            constructor() {
+                this.expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+                this.currentMonth = new Date().toISOString().slice(0, 7);
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.setTodayDate();
+                this.generateMonthSelector();
+                this.updateDisplay();
+            }
+
+            setupEventListeners() {
+                document.getElementById('expenseForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.addExpense();
+                });
+            }
+
+            setTodayDate() {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('date').value = today;
+            }
+
+            addExpense() {
+                const date = document.getElementById('date').value;
+                const store = document.getElementById('store').value.trim();
+                const category = document.getElementById('category').value;
+                const amount = parseInt(document.getElementById('amount').value);
+
+                if (!date || !store || !category || !amount) {
+                    alert('全ての項目を入力してください');
+                    return;
+                }
+
+                const expense = {
+                    id: Date.now(),
+                    date,
+                    store,
+                    category,
+                    amount,
+                    timestamp: new Date().toISOString()
+                };
+
+                this.expenses.push(expense);
+                this.saveExpenses();
+                this.updateDisplay();
+                this.resetForm();
+
+                alert('記録しました！');
+            }
+
+            resetForm() {
+                document.getElementById('store').value = '';
+                document.getElementById('category').value = '';
+                document.getElementById('amount').value = '';
+                this.setTodayDate();
+            }
+
+            saveExpenses() {
+                localStorage.setItem('expenses', JSON.stringify(this.expenses));
+            }
+
+            generateMonthSelector() {
+                const monthSelector = document.getElementById('monthSelector');
+                const months = new Set();
+                
+                this.expenses.forEach(expense => {
+                    months.add(expense.date.slice(0, 7));
+                });
+                
+                months.add(new Date().toISOString().slice(0, 7));
+                
+                const sortedMonths = Array.from(months).sort().reverse();
+                
+                monthSelector.innerHTML = '';
+                sortedMonths.forEach(month => {
+                    const btn = document.createElement('button');
+                    btn.className = `month-btn ${month === this.currentMonth ? 'active' : ''}`;
+                    btn.textContent = this.formatMonth(month);
+                    btn.onclick = () => this.selectMonth(month);
+                    monthSelector.appendChild(btn);
+                });
+            }
+
+            selectMonth(month) {
+                this.currentMonth = month;
+                document.querySelectorAll('.month-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                event.target.classList.add('active');
+                this.updateDisplay();
+            }
+
+            formatMonth(monthStr) {
+                const date = new Date(monthStr + '-01');
+                return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+            }
+
+            updateDisplay() {
+                this.updateSummary();
+                this.updateHistory();
+            }
+
+            updateSummary() {
+                const monthExpenses = this.expenses.filter(expense => 
+                    expense.date.startsWith(this.currentMonth)
+                );
+
+                const categoryTotals = {};
+                let total = 0;
+
+                monthExpenses.forEach(expense => {
+                    categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+                    total += expense.amount;
+                });
+
+                this.updateComparison(total, categoryTotals);
+                this.updateStats(monthExpenses);
+
+                const summaryGrid = document.getElementById('summaryGrid');
+                summaryGrid.innerHTML = '';
+
+                const totalCard = document.createElement('div');
+                totalCard.className = 'summary-item';
+                totalCard.style.background = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
+                totalCard.innerHTML = `
+                    <h3>合計</h3>
+                    <div class="amount">¥${total.toLocaleString()}</div>
+                `;
+                summaryGrid.appendChild(totalCard);
+
+                Object.entries(categoryTotals).forEach(([category, amount]) => {
+                    const card = document.createElement('div');
+                    card.className = 'summary-item';
+                    card.innerHTML = `
+                        <h3>${category}</h3>
+                        <div class="amount">¥${amount.toLocaleString()}</div>
+                    `;
+                    summaryGrid.appendChild(card);
+                });
+            }
+
+            getPreviousMonth(currentMonth) {
+                const date = new Date(currentMonth + '-01');
+                date.setMonth(date.getMonth() - 1);
+                return date.toISOString().slice(0, 7);
+            }
+
+            updateComparison(currentTotal, currentCategoryTotals) {
+                const comparisonSection = document.getElementById('comparisonSection');
+                const previousMonth = this.getPreviousMonth(this.currentMonth);
+                
+                const previousExpenses = this.expenses.filter(expense => 
+                    expense.date.startsWith(previousMonth)
+                );
+
+                if (previousExpenses.length === 0) {
+                    comparisonSection.innerHTML = '';
+                    return;
+                }
+
+                const previousCategoryTotals = {};
+                let previousTotal = 0;
+
+                previousExpenses.forEach(expense => {
+                    previousCategoryTotals[expense.category] = (previousCategoryTotals[expense.category] || 0) + expense.amount;
+                    previousTotal += expense.amount;
+                });
+
+                const totalDiff = currentTotal - previousTotal;
+                const totalChangePercent = previousTotal > 0 ? ((totalDiff / previousTotal) * 100) : 0;
+                
+                let changeClass = 'same';
+                let changeText = '変化なし';
+                let changeIcon = '➡️';
+
+                if (totalDiff > 0) {
+                    changeClass = 'increase';
+                    changeText = `+¥${totalDiff.toLocaleString()} (+${totalChangePercent.toFixed(1)}%)`;
+                    changeIcon = '📈';
+                } else if (totalDiff < 0) {
+                    changeClass = 'decrease';
+                    changeText = `¥${Math.abs(totalDiff).toLocaleString()} (-${Math.abs(totalChangePercent).toFixed(1)}%)`;
+                    changeIcon = '📉';
+                }
+
+                comparisonSection.innerHTML = `
+                    <div class="comparison-card">
+                        <div class="comparison-title">${changeIcon} 前月比較</div>
+                        <div class="comparison-amount">¥${currentTotal.toLocaleString()}</div>
+                        <div class="comparison-change ${changeClass}">${changeText}</div>
+                        <div style="font-size: 0.8rem; margin-top: 5px; opacity: 0.8;">
+                            ${this.formatMonth(previousMonth)}: ¥${previousTotal.toLocaleString()}
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateStats(monthExpenses) {
+                const statsSection = document.getElementById('statsSection');
+                
+                if (monthExpenses.length === 0) {
+                    statsSection.innerHTML = '';
+                    return;
+                }
+
+                const total = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+                const averagePerDay = total / new Date(this.currentMonth.split('-')[0], this.currentMonth.split('-')[1], 0).getDate();
+                const averagePerTransaction = total / monthExpenses.length;
+                const mostExpensiveDay = this.getMostExpensiveDay(monthExpenses);
+                const topCategory = this.getTopCategory(monthExpenses);
+
+                statsSection.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">1日平均</div>
+                            <div class="stat-value">¥${Math.round(averagePerDay).toLocaleString()}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">1回平均</div>
+                            <div class="stat-value">¥${Math.round(averagePerTransaction).toLocaleString()}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">記録回数</div>
+                            <div class="stat-value">${monthExpenses.length}回</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">最高支出日</div>
+                            <div class="stat-value">${mostExpensiveDay.day}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">最多カテゴリ</div>
+                            <div class="stat-value">${topCategory}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getMostExpensiveDay(expenses) {
+                const dailyTotals = {};
+                
+                expenses.forEach(expense => {
+                    const day = expense.date.split('-')[2];
+                    dailyTotals[day] = (dailyTotals[day] || 0) + expense.amount;
+                });
+
+                let maxDay = '';
+                let maxAmount = 0;
+                
+                Object.entries(dailyTotals).forEach(([day, amount]) => {
+                    if (amount > maxAmount) {
+                        maxAmount = amount;
+                        maxDay = day;
+                    }
+                });
+
+                return {
+                    day: `${parseInt(maxDay)}日`,
+                    amount: maxAmount
+                };
+            }
+
+            getTopCategory(expenses) {
+                const categoryTotals = {};
+                
+                expenses.forEach(expense => {
+                    categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+                });
+
+                let topCategory = '';
+                let maxAmount = 0;
+                
+                Object.entries(categoryTotals).forEach(([category, amount]) => {
+                    if (amount > maxAmount) {
+                        maxAmount = amount;
+                        topCategory = category;
+                    }
+                });
+
+                return topCategory || 'なし';
+            }
+
+            updateHistory() {
+                const monthExpenses = this.expenses
+                    .filter(expense => expense.date.startsWith(this.currentMonth))
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                const historyList = document.getElementById('historyList');
+                
+                if (monthExpenses.length === 0) {
+                    historyList.innerHTML = '<div class="empty-state">まだ記録がありません</div>';
+                    return;
+                }
+
+                historyList.innerHTML = '';
+                monthExpenses.forEach(expense => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    item.innerHTML = `
+                        <div class="history-info">
+                            <div class="history-date">${this.formatDate(expense.date)}</div>
+                            <div class="history-details">${expense.category} - ${expense.store}</div>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <div class="history-amount">¥${expense.amount.toLocaleString()}</div>
+                            <button class="delete-btn" onclick="expenseTracker.deleteExpense(${expense.id})">削除</button>
+                        </div>
+                    `;
+                    historyList.appendChild(item);
+                });
+            }
+
+            formatDate(dateStr) {
+                const date = new Date(dateStr);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            }
+
+            deleteExpense(id) {
+                if (confirm('この記録を削除しますか？')) {
+                    this.expenses = this.expenses.filter(expense => expense.id !== id);
+                    this.saveExpenses();
+                    this.generateMonthSelector();
+                    this.updateDisplay();
+                }
+            }
+        }
+
+        const expenseTracker = new ExpenseTracker();
+    </script>
+</body>
+</html>
